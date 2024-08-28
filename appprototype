@@ -1,0 +1,313 @@
+import random
+import sqlite3
+import time
+from statistics import mean
+from tkinter import *
+import customtkinter
+import matplotlib.pyplot as plt
+import numpy as np
+import webbrowser
+from PIL import Image
+
+customtkinter.set_appearance_mode("light")
+customtkinter.set_default_color_theme(r"C:\Users\ryan4\OneDrive\Desktop\themes\red.json")
+
+# root = Tk()
+root = customtkinter.CTk()
+root.title('SunSafety App')
+root.geometry('700x900')
+
+# Create Tabview
+my_tab = customtkinter.CTkTabview(root, width=200, height=900)
+my_tab.pack(pady=100)
+
+# Create tabs
+tab_1 = my_tab.add("Home")
+tab_2 = my_tab.add("LogBook")
+tab_3 = my_tab.add("Learn SunSafe")
+tab_4 = my_tab.add("My Stats")
+
+my_icon = customtkinter.CTkImage(light_image=Image.open(r"C:\Users\ryan4\OneDrive\Pictures\Screenshots\sun.icon.png"),
+                                 dark_image=Image.open(r"C:\Users\ryan4\OneDrive\Pictures\Screenshots\sun.icon.png"),
+                                 size=(100, 100))
+
+my_image = customtkinter.CTkLabel(tab_1, text="", image=my_icon)
+my_image.grid(row=0, column=0)
+
+# background image for home screen
+
+spf = ["No", "SPF 15", "SPF 30", "SPF 50"]
+
+spf_btn = customtkinter.CTkOptionMenu(master=tab_2, values=spf)
+spf_btn.grid(row=9, column=1, pady=20)
+
+spf_btn_label = customtkinter.CTkLabel(tab_2, text="SPF use this week:")
+spf_btn_label.grid(row=9, column=0)
+
+
+def clock():
+    global hour
+    hour = time.strftime("%H")
+    minute = time.strftime("%M")
+    my_clock.configure(text=hour + ":" + minute)
+    my_clock.after(1000, clock)
+
+    global uv_value
+    if 0 <= int(hour) < 6:
+        uv_value = 0
+    elif 6 <= int(hour) < 9:
+        uv_value = 5
+    elif 9 <= int(hour) < 11:
+        uv_value = 7
+    elif 11 <= int(hour) < 14:
+        uv_value = 11
+    elif 14 <= int(hour) < 15:
+        uv_value = 7
+    elif 15 <= int(hour) < 17:
+        uv_value = 3
+    elif 17 <= int(hour) < 24:
+        uv_value = 0
+
+    my_uv = customtkinter.CTkLabel(tab_1, text=str(uv_value), font=("Helvetica", 60))
+    my_uv.grid(row=4, column=1, pady=20)
+
+    uv_label = customtkinter.CTkLabel(tab_1, text="Today's UV:", font=("Helvetica", 30))
+    uv_label.grid(row=3, column=1, pady=20)
+
+
+def update():
+    my_clock.configure(text='New Text')
+
+
+my_clock = customtkinter.CTkLabel(tab_1, text="", font=("Helvetica", 28))
+my_clock.grid(row=0, column=1, pady=5, padx=120)
+
+clock()
+
+day = time.strftime("%a" + " " + "%d")
+month = time.strftime("%b")
+
+my_date = customtkinter.CTkLabel(tab_1, text=day + " " + month)
+my_date.grid(row=1, column=1)
+
+global fact
+fact_no = random.randrange(1, 3)
+if fact_no == 1:
+    fact = " SPF 15 is great, but 30 and 50 is better!"
+elif fact_no == 2:
+    fact = " Make sure to check even the smallest of moles!"
+elif fact_no == 3:
+    fact = "Remember to Slip, Slop, Slap, Slide and Seek"
+
+fact_label = customtkinter.CTkLabel(tab_1, text="Marie:" + str(fact))
+fact_label.grid(row=7, column=1, pady=30)
+
+
+# Function to submit data to the calculator
+def submit():
+    global response_value
+    monday = float(mon_name.get())
+    tuesday = float(tue_name.get())
+    wednesday = float(wed_name.get())
+    thursday = float(thu_name.get())
+    friday = float(fri_name.get())
+    saturday = float(sat_name.get())
+    sunday = float(sun_name.get())
+
+    conn = sqlite3.connect('exposure.db')
+
+    # Create Cursor
+    c = conn.cursor()
+
+    # Submit into table
+    c.execute("INSERT INTO exposure VALUES (:monday, :tuesday, :wednesday, :thursday, :friday, :saturday, :sunday)",
+              {
+                  'monday': monday,
+                  'tuesday': tuesday,
+                  'wednesday': wednesday,
+                  'thursday': thursday,
+                  'friday': friday,
+                  'saturday': saturday,
+                  'sunday': sunday
+              })
+
+    conn.commit()
+
+    conn.close()
+
+    mon_name.delete(0, END)
+    tue_name.delete(0, END)
+    wed_name.delete(0, END)
+    thu_name.delete(0, END)
+    fri_name.delete(0, END)
+    sat_name.delete(0, END)
+    sun_name.delete(0, END)
+
+    data = [monday, tuesday, wednesday, thursday, friday, saturday, sunday]
+    mean_value = round(mean(data), 2)
+    mean_label.configure(text=f"This Weeks's Average: {mean_value}")
+
+    low_rate = "Try getting a little more vitamin D"
+    correct_rate = "Perfect amount this week, keep it up!"
+    high_rate = "Make sure to apply sunscreen before long times in the sun"
+    ss_high = "Remember to reapply sunscreen after about 4 hours"
+
+    spf_value = spf_btn.get()
+
+    if spf_value == "No":
+        if .25 <= mean_value <= .5:
+            response_value = correct_rate
+        elif .5 < mean_value:
+            response_value = high_rate
+        elif mean_value < 0.25:
+            response_value = low_rate
+    elif spf_value == "SPF 50":
+        if .5 <= mean_value <= 8.3:
+            response_value = correct_rate
+        elif mean_value > 8.3:
+            response_value = ss_high
+        elif mean_value < .5:
+            response_value = low_rate
+    elif spf_value == "SPF 15":
+        if .5 <= mean_value <= 2.5:
+            response_value = correct_rate
+        elif mean_value > 2.5:
+            response_value = high_rate
+        elif mean_value < .5:
+            response_value = low_rate
+    elif spf_value == "SPF 30":
+        if 2.5 <= mean_value <= 5:
+            response_value = correct_rate
+        elif mean_value > 5:
+            response_value = high_rate
+        elif mean_value < 2.5:
+            response_value = low_rate
+
+    response = response_value
+    response_label.configure(text=f"Marie: {response}")
+
+    def graph():
+        uv_exposure = np.random.normal(data)
+        plt.hist(uv_exposure, 10)
+        plt.show()
+
+    graph_button = customtkinter.CTkButton(tab_4, text="Graph It", command=graph)
+    graph_button.grid(row=5, column=0, columnspan=2, pady=10, padx=10)
+
+
+def clean_database():
+    conn = sqlite3.connect('exposure.db')
+    c = conn.cursor()
+
+    c.execute("DELETE FROM exposure")
+
+    conn.commit()
+    conn.close()
+
+
+clean_db = customtkinter.CTkButton(tab_4, text="WIPE DATABASE", command=clean_database)
+clean_db.grid(row=13, column=0, padx=20, pady=20)
+
+
+# Create query func
+def query():
+    conn = sqlite3.connect('exposure.db')
+
+    # Create Cursor
+    c = conn.cursor()
+
+    # Query database
+    c.execute(
+        "SELECT monday, tuesday, wednesday, thursday, friday, saturday, sunday FROM exposure ORDER BY oid DESC LIMIT 5")
+    records = c.fetchall()
+
+    # Loop through results
+    print_records = ''
+    for record in reversed(records):
+        print_records += str(record) + "\n"
+
+    query_label = customtkinter.CTkLabel(tab_4, text=print_records)
+    query_label.grid(row=0, column=0, columnspan=3, pady=20, padx=20)
+
+    conn.commit()
+
+    conn.close()
+
+
+# Creating text boxes
+mon_name = customtkinter.CTkEntry(tab_2, width=30)
+mon_name.grid(row=2, column=1, padx=20)
+tue_name = customtkinter.CTkEntry(tab_2, width=30)
+tue_name.grid(row=3, column=1, padx=20)
+wed_name = customtkinter.CTkEntry(tab_2, width=30)
+wed_name.grid(row=4, column=1, padx=20)
+thu_name = customtkinter.CTkEntry(tab_2, width=30)
+thu_name.grid(row=5, column=1, padx=20)
+fri_name = customtkinter.CTkEntry(tab_2, width=30)
+fri_name.grid(row=6, column=1, padx=20)
+sat_name = customtkinter.CTkEntry(tab_2, width=30)
+sat_name.grid(row=7, column=1, padx=20)
+sun_name = customtkinter.CTkEntry(tab_2, width=30)
+sun_name.grid(row=8, column=1, padx=20)
+
+mon_name_label = customtkinter.CTkLabel(tab_2, text="Mon:")
+mon_name_label.grid(row=2, column=0)
+tue_name_label = customtkinter.CTkLabel(tab_2, text="Tue: ")
+tue_name_label.grid(row=3, column=0)
+wed_name_label = customtkinter.CTkLabel(tab_2, text="Wed:")
+wed_name_label.grid(row=4, column=0)
+thu_name_label = customtkinter.CTkLabel(tab_2, text="Thu: ")
+thu_name_label.grid(row=5, column=0)
+fri_name_label = customtkinter.CTkLabel(tab_2, text="Fri:  ")
+fri_name_label.grid(row=6, column=0)
+sat_name_label = customtkinter.CTkLabel(tab_2, text="Sat: ")
+sat_name_label.grid(row=7, column=0)
+sun_name_label = customtkinter.CTkLabel(tab_2, text="Sun:")
+sun_name_label.grid(row=8, column=0)
+
+
+def callback(url):
+    webbrowser.open_new(url)
+
+
+sc_link = customtkinter.CTkButton(tab_3, text="Learn More About Skin Cancer")
+sc_link.grid(row=1, column=0, padx=20, pady=20, columnspan=1)
+sc_link.bind("<Button-1>", lambda e: callback("https://www.cancercouncil.com.au/skin-cancer/"))
+
+sp_link = customtkinter.CTkButton(tab_3, text="Learn How To Check For Possible Signs")
+sp_link.grid(row=2, column=0, padx=20, pady=20, columnspan=1)
+sp_link.bind("<Button-1>", lambda e: callback(
+    "https://www.cancercouncil.com.au/cancer-prevention/screening/checking-for-skin-cancer/"))
+
+ss_link = customtkinter.CTkButton(tab_3, text=" Sun Protective Equipment")
+ss_link.grid(row=3, column=0, padx=20, pady=20, columnspan=1)
+ss_link.bind("<Button-1>", lambda e: callback(
+    "https://cancer.org.au/cancer-information/causes-and-prevention/sun-safety/about-sunscreen/spf50-sunscreen"))
+
+ls_link = customtkinter.CTkButton(tab_3, text="Learn about sun safety")
+ls_link.grid(row=4, column=0, padx=20, pady=20, columnspan=1)
+ls_link.bind("<Button-1>", lambda e: callback(
+    "https://cancer.org.au/cancer-information/causes-and-prevention/sun-safety/preventing-skin-cancer"))
+
+logbook_label = customtkinter.CTkLabel(tab_2, text="UV LogBook", font=("Helvetica", 20))
+logbook_label.grid(row=1, column=0, columnspan=2, pady=10)
+
+submit_btn = customtkinter.CTkButton(tab_2, text="Submit", command=submit)
+submit_btn.grid(row=10, column=0, columnspan=2, pady=10, padx=10, ipadx=100, sticky="ew")
+
+mean_label = customtkinter.CTkLabel(tab_2, text="This Week's Average: ")
+mean_label.grid(row=11, column=0, columnspan=2, pady=10)
+
+response_label = customtkinter.CTkLabel(tab_2, text="Marie: ")
+response_label.grid(row=13, column=0, columnspan=2, pady=10)
+
+learn_label = customtkinter.CTkLabel(tab_3, text="SunSafety", font=("Helvetica", 20))
+learn_label.grid(row=0, column=0, pady=20, padx=20)
+
+data_label = customtkinter.CTkLabel(tab_4, text="Your Data", font=("Helvetica", 20))
+data_label.grid(row=0, column=0, pady=20, padx=20)
+
+query_btn = customtkinter.CTkButton(tab_4, text="Show Records", command=query)
+query_btn.grid(row=1, column=0, pady=10, padx=10, ipadx=100, sticky="ew")
+
+root.mainloop()
